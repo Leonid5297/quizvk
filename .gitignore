@@ -1,0 +1,76 @@
+# ─── Секреты ──────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Python (backend, ai_service) ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+*.log
+
+# Django
+db.sqlite3
+staticfiles/
+media/*
+!media/.gitkeep
+
+# ─── Node / Vite (frontend) ──────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# ─── Docker / Caddy рантайм-данные ────────────────────────────────────
+caddy_data/
+caddy_config/
+
+# ─── ОС / редакторы ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+EOF
+echo "written"
+cat /home/claude/quizvk/.gitignore
+Output
+
+written
+# ─── Секреты ──────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Python (backend, ai_service) ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+*.log
+
+# Django
+db.sqlite3
+staticfiles/
+media/*
+!media/.gitkeep
+
+# ─── Node / Vite (frontend) ──────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# ─── Docker / Caddy рантайм-данные ────────────────────────────────────
+caddy_data/
+caddy_config/
+
+# ─── ОС / редакторы ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,15 @@
+# Автоматический HTTPS (Let's Encrypt) перед тем же nginx, что отдаёт сайт
+# и проксирует /api, /ws, /ai — см. docker-compose.https.yml.
+#
+# {$DOMAIN} и {$ACME_EMAIL} подставляются из .env (переменные DOMAIN и
+# ACME_EMAIL) — без реального домена, указывающего на этот сервер, Caddy
+# не сможет получить сертификат.
+{
+    email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+    reverse_proxy frontend:80
+
+    encode gzip
+}

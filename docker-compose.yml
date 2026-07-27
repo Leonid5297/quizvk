@@ -1,0 +1,107 @@
+# Поднимает весь стек QuizVK одной командой: docker compose up --build
+#
+# Настройки — через .env в этой же папке (см. .env.example). Само
+# docker-compose подставляет из него значения в ${...} ниже — отдельных
+# .env-файлов внутри quizflow_backend/quizflow_ai_service для контейнеров
+# заводить не нужно, все переменные передаются явно через environment.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-quizflow}
+      POSTGRES_USER: ${POSTGRES_USER:-quizflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quizflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-quizflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./quizflow_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-to-a-random-string}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+      CORS_ALLOW_ALL_ORIGINS: ${CORS_ALLOW_ALL_ORIGINS:-True}
+      POSTGRES_DB: ${POSTGRES_DB:-quizflow}
+      POSTGRES_USER: ${POSTGRES_USER:-quizflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quizflow}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://localhost}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:-}
+      VK_OAUTH_CLIENT_ID: ${VK_OAUTH_CLIENT_ID:-}
+      VK_OAUTH_REDIRECT_URI: ${VK_OAUTH_REDIRECT_URI:-}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-QuizVK <no-reply@quizvk.local>}
+    volumes:
+      - media_data:/app/media
+    # Порт наружу нужен, только если хотите ходить в бэкенд напрямую
+    # (например, в /admin/) — весь обычный трафик идёт через nginx
+    # фронтенда (см. quizflow_frontend/nginx.conf), можно убрать.
+    #ports:
+    #  - "8000:8000"
+
+  ai_service:
+    build: ./quizflow_ai_service
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
+      CLAUDE_MAX_TOKENS: ${CLAUDE_MAX_TOKENS:-4096}
+      MAX_QUESTIONS_PER_REQUEST: ${MAX_QUESTIONS_PER_REQUEST:-15}
+      CORS_ALLOW_ALL_ORIGINS: ${CORS_ALLOW_ALL_ORIGINS:-True}
+
+  frontend:
+    build: ./quizflow_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - ai_service
+    environment:
+      # Пусто = запросы идут на тот же origin, откуда отдана страница —
+      # nginx этого контейнера сам проксирует /api и /ws на backend (см.
+      # nginx.conf), а /ai — на ai_service. Заполните только если фронтенд
+      # и бэкенд намеренно разнесены на разные домены.
+      QUIZVK_API_BASE: ${QUIZVK_API_BASE:-}
+      QUIZVK_WS_BASE: ${QUIZVK_WS_BASE:-}
+      QUIZVK_AI_SERVICE_BASE: ${QUIZVK_AI_SERVICE_BASE:-/ai}
+    volumes:
+      # Django отдаёт /media/ сам только при DEBUG=True (никогда в проде) —
+      # поэтому те же файлы монтируются сюда и nginx отдаёт их напрямую с
+      # диска, не проксируя запрос на backend. См. nginx.conf.
+      - media_data:/usr/share/nginx/media:ro
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
+  media_data:

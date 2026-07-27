@@ -1,0 +1,35 @@
+# Опциональная надстройка для настоящего домена с автоматическим HTTPS
+# (Let's Encrypt через Caddy). Использовать вместе с основным файлом:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+#
+# Требования: DOMAIN в .env указывает на настоящий домен, чьи DNS A/AAAA
+# записи уже смотрят на IP этого сервера — иначе Caddy не сможет
+# подтвердить владение доменом и получить сертификат.
+#
+# frontend перестаёт быть виден на хосте напрямую (порт 80 отдаём Caddy) —
+# внутри docker-сети между контейнерами он как был на 80, так и остался,
+# просто теперь единственный, кто ходит на него снаружи — сам Caddy.
+services:
+  frontend:
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
